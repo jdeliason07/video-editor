@@ -6,18 +6,29 @@ export interface CaptionCue {
   end: number;
 }
 
+export interface PipelineProgress {
+  stage: "analyzing" | "measuring" | "rendering";
+  percent: number;
+}
+
 export interface ProcessVideoArgs {
   inputPath: string;
   outputPath: string;
   profile: BrandProfile;
   captionCues?: CaptionCue[];
-  onProgress?: (progress: { percent?: number; timemark?: string }) => void;
+  onProgress?: (progress: PipelineProgress) => void;
 }
 
 export interface ProcessVideoResult {
   outputPath: string;
-  duration: number;
-  jumpCutMeta: { cutsRemoved: number } | null;
+  inputDuration: number;
+  outputDuration: number;
+  loudness: {
+    target: number;
+    twoPass: boolean;
+    measuredInput: number | null;
+  };
+  jumpCutMeta: { cutsRemoved: number; keepSegments: { start: number; end: number }[] } | null;
 }
 
 export function processVideo(args: ProcessVideoArgs): Promise<ProcessVideoResult>;

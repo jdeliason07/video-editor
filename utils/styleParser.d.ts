@@ -30,13 +30,14 @@ export interface BrandProfile {
   };
   captions: {
     fontFile: string;
-    fontWeight: string;
     fontSize: number;
     primaryColor: string;
     secondaryColor: string;
     position: "center" | "lower-third" | "top";
     backgroundBox: boolean;
-    animation: string;
+    outlineWidth: number;
+    shadowOffset: number;
+    animation: "none" | "fade";
     uppercase: boolean;
   };
   editing: {
@@ -52,6 +53,7 @@ export interface AppliedRule {
 }
 
 export const DEFAULT_PROFILE: BrandProfile;
+export const CLAMPS: Record<string, [number, number]>;
 export function listBrandIds(): string[];
 export function listBrandProfiles(): BrandProfile[];
 export function loadBrandProfile(id: string): BrandProfile;

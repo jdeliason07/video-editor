@@ -2,14 +2,22 @@
  * Brand validation + style parsing layer.
  *
  * Responsibilities:
- *   1. Load & validate the JSON brand archetype profiles in /config/brands.
+ *   1. Load & validate the JSON brand archetype profiles in /config/brands,
+ *      clamping every numeric knob into a range the FFmpeg pipeline can
+ *      safely build filter strings from.
  *   2. Parse free-form "Brand Style Guide Override" text pasted into the UI
  *      and translate brand vocabulary ("moody", "minimalist", "lower third")
- *      into explicit, clamped programmatic variables the FFmpeg pipeline
- *      can consume directly.
+ *      into explicit programmatic variables.
  *
- * Everything here is plain CommonJS so it can be shared by API route
- * handlers (TS) and the ffmpeg pipeline (JS) without a build step.
+ * The override grammar has two layers, applied in order:
+ *   - keyword rules: fuzzy brand words ("cinematic", "zero clutter") mapped
+ *     to opinionated parameter deltas;
+ *   - explicit directives: `key: value` lines (e.g. "contrast: 1.3",
+ *     "caption color: #FF5500", "position: lower-third") that set a
+ *     parameter outright and always win over keyword rules.
+ *
+ * Plain CommonJS so it can be shared by Next.js route handlers (TS) and the
+ * ffmpeg pipeline (JS) without a build step. Types live in styleParser.d.ts.
  */
 
 const fs = require("fs");
@@ -43,13 +51,14 @@ const DEFAULT_PROFILE = {
     loudnessRange: 11,
   },
   captions: {
-    fontFile: "public/fonts/Inter-SemiBold.ttf",
-    fontWeight: "semibold",
+    fontFile: "public/fonts/WorkSans-Bold.ttf",
     fontSize: 56,
     primaryColor: "#FFFFFF",
     secondaryColor: "#FFFFFF",
     position: "center",
     backgroundBox: false,
+    outlineWidth: 3,
+    shadowOffset: 0,
     animation: "none",
     uppercase: false,
   },
@@ -80,11 +89,14 @@ const CLAMPS = {
   "audio.truePeak": [-6, -0.5],
   "audio.loudnessRange": [3, 20],
   "captions.fontSize": [24, 120],
+  "captions.outlineWidth": [0, 12],
+  "captions.shadowOffset": [0, 12],
   "editing.minShotSeconds": [0.3, 6],
 };
 
 const VALID_POSITIONS = new Set(["center", "lower-third", "top"]);
 const VALID_SENSITIVITY = new Set(["low", "medium", "high"]);
+const VALID_ANIMATIONS = new Set(["none", "fade"]);
 const HEX_COLOR_RE = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
 function isPlainObject(value) {
@@ -94,7 +106,7 @@ function isPlainObject(value) {
 /** Recursively merge `patch` onto `base`, returning a new object (never mutates inputs). */
 function deepMerge(base, patch) {
   if (!isPlainObject(patch)) return base;
-  const out = Array.isArray(base) ? [...base] : { ...base };
+  const out = { ...base };
   for (const key of Object.keys(patch)) {
     const patchVal = patch[key];
     const baseVal = out[key];
@@ -120,10 +132,16 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
+function expandHex(color) {
+  const hex = color.slice(1);
+  if (hex.length === 6) return `#${hex.toUpperCase()}`;
+  return `#${hex.split("").map((c) => c + c).join("").toUpperCase()}`;
+}
+
 /**
- * Clamp every numeric field with a known safe range, and validate enums.
- * Throws a descriptive error if a required structural field is missing or
- * the wrong type (this is the "brand validation layer").
+ * Validate a profile's structure and clamp every numeric field into its safe
+ * range. Collects every problem before throwing so a bad hand-written config
+ * reports all of its mistakes at once, not one per run.
  */
 function normalizeProfile(rawProfile) {
   if (!isPlainObject(rawProfile)) {
@@ -131,38 +149,44 @@ function normalizeProfile(rawProfile) {
   }
 
   const merged = deepMerge(DEFAULT_PROFILE, rawProfile);
+  const problems = [];
 
   for (const dotted of Object.keys(CLAMPS)) {
     const [min, max] = CLAMPS[dotted];
     const current = getPath(merged, dotted);
     if (typeof current !== "number" || Number.isNaN(current)) {
-      throw new Error(`Brand profile field "${dotted}" must be a number`);
+      problems.push(`"${dotted}" must be a number, got ${JSON.stringify(current)}`);
+    } else {
+      setPath(merged, dotted, clamp(current, min, max));
     }
-    setPath(merged, dotted, clamp(current, min, max));
   }
 
   if (!VALID_POSITIONS.has(merged.captions.position)) {
-    throw new Error(
-      `captions.position must be one of ${[...VALID_POSITIONS].join(", ")}, got "${merged.captions.position}"`
-    );
+    problems.push(`"captions.position" must be one of ${[...VALID_POSITIONS].join(", ")}, got "${merged.captions.position}"`);
   }
   if (!VALID_SENSITIVITY.has(merged.editing.cutSensitivity)) {
-    throw new Error(
-      `editing.cutSensitivity must be one of ${[...VALID_SENSITIVITY].join(", ")}, got "${merged.editing.cutSensitivity}"`
-    );
+    problems.push(`"editing.cutSensitivity" must be one of ${[...VALID_SENSITIVITY].join(", ")}, got "${merged.editing.cutSensitivity}"`);
+  }
+  if (!VALID_ANIMATIONS.has(merged.captions.animation)) {
+    problems.push(`"captions.animation" must be one of ${[...VALID_ANIMATIONS].join(", ")}, got "${merged.captions.animation}"`);
   }
   for (const colorField of ["primaryColor", "secondaryColor"]) {
-    if (!HEX_COLOR_RE.test(merged.captions[colorField])) {
-      throw new Error(`captions.${colorField} must be a hex color, got "${merged.captions[colorField]}"`);
+    const value = merged.captions[colorField];
+    if (typeof value !== "string" || !HEX_COLOR_RE.test(value)) {
+      problems.push(`"captions.${colorField}" must be a hex color like #F5C518, got ${JSON.stringify(value)}`);
+    } else {
+      merged.captions[colorField] = expandHex(value);
     }
   }
-  if (typeof merged.captions.backgroundBox !== "boolean") {
-    throw new Error("captions.backgroundBox must be a boolean");
-  }
-  if (typeof merged.editing.jumpCutOnBreaths !== "boolean") {
-    throw new Error("editing.jumpCutOnBreaths must be a boolean");
+  for (const boolField of ["captions.backgroundBox", "captions.uppercase", "video.vignette", "editing.jumpCutOnBreaths"]) {
+    if (typeof getPath(merged, boolField) !== "boolean") {
+      problems.push(`"${boolField}" must be a boolean`);
+    }
   }
 
+  if (problems.length > 0) {
+    throw new Error(`Invalid brand profile "${merged.id}": ${problems.join("; ")}`);
+  }
   return merged;
 }
 
@@ -171,7 +195,8 @@ function listBrandIds() {
   return fs
     .readdirSync(BRANDS_DIR)
     .filter((f) => f.endsWith(".json"))
-    .map((f) => f.replace(/\.json$/, ""));
+    .map((f) => f.replace(/\.json$/, ""))
+    .sort();
 }
 
 /** Load, validate, and normalize every brand profile in /config/brands. */
@@ -196,10 +221,9 @@ function loadBrandProfile(id) {
 }
 
 /**
- * Keyword -> programmatic-variable translation rules.
- * Each rule scans the override text for a pattern and, on match, mutates a
- * working draft of the config plus records a human-readable explanation of
- * what it changed (surfaced back to the UI for transparency).
+ * Layer 1 — keyword rules. Each rule scans the override text and, on match,
+ * nudges a working draft of the config, recording a human-readable
+ * explanation that is surfaced back to the UI for transparency.
  */
 const KEYWORD_RULES = [
   {
@@ -220,11 +244,11 @@ const KEYWORD_RULES = [
       cfg.video.colorBalance.shadows.b -= 0.08;
       cfg.video.colorBalance.midtones.r += 0.03;
     },
-    explain: "shadows/midtones pushed toward orange, away from blue",
+    explain: "shadows and midtones pushed toward orange, away from blue",
   },
   {
     name: "cool tone",
-    test: /\b(cool|cold)\b/i,
+    test: /\b(cool|cold|icy)\b/i,
     apply: (cfg) => {
       cfg.video.colorBalance.shadows.b += 0.08;
       cfg.video.colorBalance.shadows.r -= 0.05;
@@ -251,7 +275,7 @@ const KEYWORD_RULES = [
   },
   {
     name: "low contrast / flat",
-    test: /\b(low[\s-]?contrast|flat( look)?)\b/i,
+    test: /\b(low[\s-]?contrast|flat( look| profile)?)\b/i,
     apply: (cfg) => {
       cfg.video.contrast -= 0.15;
     },
@@ -259,7 +283,7 @@ const KEYWORD_RULES = [
   },
   {
     name: "vibrant / vivid",
-    test: /\b(vibrant|vivid|punchy colors?)\b/i,
+    test: /\b(vibrant|vivid|punchy)\b/i,
     apply: (cfg) => {
       cfg.video.saturation += 0.2;
     },
@@ -267,15 +291,32 @@ const KEYWORD_RULES = [
   },
   {
     name: "desaturated / muted",
-    test: /\b(desaturat\w*|muted( tones)?)\b/i,
+    test: /\b(desaturat\w*|muted|washed[\s-]?out)\b/i,
     apply: (cfg) => {
       cfg.video.saturation -= 0.2;
     },
     explain: "saturation reduced",
   },
   {
+    name: "black and white",
+    test: /\b(black[\s-]?and[\s-]?white|monochrome|grayscale|greyscale)\b/i,
+    apply: (cfg) => {
+      cfg.video.saturation = 0;
+    },
+    explain: "saturation removed entirely (monochrome)",
+  },
+  {
+    name: "bright / airy",
+    test: /\b(bright|airy|light and clean)\b/i,
+    apply: (cfg) => {
+      cfg.video.brightness += 0.04;
+      cfg.video.gamma += 0.05;
+    },
+    explain: "brightness and gamma lifted",
+  },
+  {
     name: "minimalist / zero clutter",
-    test: /\b(minimalis[tm]|zero clutter|no clutter|declutter\w*)\b/i,
+    test: /\b(minimalis[tm]\w*|zero clutter|no clutter|declutter\w*)\b/i,
     apply: (cfg) => {
       cfg.captions.animation = "none";
       cfg.captions.backgroundBox = false;
@@ -284,7 +325,7 @@ const KEYWORD_RULES = [
   },
   {
     name: "clean / simple",
-    test: /\b(clean|simple)( look| style| aesthetic)?\b/i,
+    test: /\b(clean|simple)\b/i,
     apply: (cfg) => {
       cfg.captions.animation = "none";
     },
@@ -294,10 +335,10 @@ const KEYWORD_RULES = [
     name: "bold text",
     test: /\bbold\b/i,
     apply: (cfg) => {
-      cfg.captions.fontWeight = "bold";
       cfg.captions.fontSize += 8;
+      cfg.captions.outlineWidth = Math.max(cfg.captions.outlineWidth, 4);
     },
-    explain: "caption weight set to bold, font size increased",
+    explain: "caption size and outline weight increased",
   },
   {
     name: "crisp / sharp / high clarity",
@@ -317,8 +358,8 @@ const KEYWORD_RULES = [
     explain: "contrast and sharpen increased for a broadcast look",
   },
   {
-    name: "jump cuts / sharp cuts / fast cuts",
-    test: /\b(jump[\s-]?cuts?|sharp cuts?|fast cuts?)\b/i,
+    name: "jump cuts / fast cuts",
+    test: /\b(jump[\s-]?cuts?|sharp cuts?|fast cuts?|tight edit)\b/i,
     apply: (cfg) => {
       cfg.editing.jumpCutOnBreaths = true;
       cfg.editing.cutSensitivity = "high";
@@ -328,7 +369,7 @@ const KEYWORD_RULES = [
   },
   {
     name: "slow cuts / long takes",
-    test: /\b(slow cuts?|long takes?)\b/i,
+    test: /\b(slow cuts?|long takes?|no (jump[\s-]?)?cuts)\b/i,
     apply: (cfg) => {
       cfg.editing.jumpCutOnBreaths = false;
       cfg.editing.cutSensitivity = "low";
@@ -344,6 +385,14 @@ const KEYWORD_RULES = [
       cfg.captions.backgroundBox = true;
     },
     explain: "captions moved to lower-third with background box",
+  },
+  {
+    name: "top-of-frame captions",
+    test: /\b(top of (the )?frame|captions? (at|on) top)\b/i,
+    apply: (cfg) => {
+      cfg.captions.position = "top";
+    },
+    explain: "captions moved to top of frame",
   },
   {
     name: "centered captions",
@@ -362,12 +411,20 @@ const KEYWORD_RULES = [
     explain: "captions rendered in uppercase",
   },
   {
-    name: "lowercase",
-    test: /\blowercase\b/i,
+    name: "lowercase / sentence case",
+    test: /\b(lowercase|sentence case)\b/i,
     apply: (cfg) => {
       cfg.captions.uppercase = false;
     },
     explain: "captions rendered in original casing",
+  },
+  {
+    name: "fade animation",
+    test: /\bfade[\s-]?(in|ins|animation)?\b/i,
+    apply: (cfg) => {
+      cfg.captions.animation = "fade";
+    },
+    explain: "caption fade in/out enabled",
   },
   {
     name: "yellow accent",
@@ -378,16 +435,16 @@ const KEYWORD_RULES = [
     explain: 'primary caption color set to "#F5C518"',
   },
   {
-    name: "white subtitles",
-    test: /\bwhite (subtitles?|text|captions?)\b/i,
+    name: "white captions",
+    test: /\bwhite (subtitles?|text|captions?|titles?)\b/i,
     apply: (cfg) => {
-      cfg.captions.secondaryColor = "#FFFFFF";
+      cfg.captions.primaryColor = "#FFFFFF";
     },
-    explain: 'secondary caption color set to "#FFFFFF"',
+    explain: 'primary caption color set to "#FFFFFF"',
   },
   {
     name: "quiet / dialogue-heavy",
-    test: /\b(quiet|podcast|dialogue[\s-]?heavy)\b/i,
+    test: /\b(quiet|podcast|dialogue[\s-]?heavy|talking head)\b/i,
     apply: (cfg) => {
       cfg.audio.loudnessRange -= 2;
     },
@@ -395,7 +452,7 @@ const KEYWORD_RULES = [
   },
   {
     name: "loud / energetic",
-    test: /\b(loud|energetic|high energy)\b/i,
+    test: /\b(energetic|high[\s-]?energy|hype)\b/i,
     apply: (cfg) => {
       cfg.audio.loudnessRange += 2;
     },
@@ -403,15 +460,79 @@ const KEYWORD_RULES = [
   },
 ];
 
-/** Explicit #hex codes in the override text always win over keyword rules. */
-function applyExplicitHexCodes(cfg, text, applied) {
-  const matches = text.match(/#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})/g);
+/**
+ * Layer 2 — explicit `key: value` directives. Recognized on their own line
+ * (markdown bullets/emphasis stripped), e.g.:
+ *
+ *   - contrast: 1.35
+ *   - caption color: #FF5500
+ *   - font size: 72
+ *   - position: lower-third
+ *
+ * These set the parameter outright and always beat keyword rules.
+ */
+const DIRECTIVES = [
+  { keys: ["contrast"], path: "video.contrast", kind: "number" },
+  { keys: ["saturation"], path: "video.saturation", kind: "number" },
+  { keys: ["brightness"], path: "video.brightness", kind: "number" },
+  { keys: ["gamma"], path: "video.gamma", kind: "number" },
+  { keys: ["sharpen", "sharpness"], path: "video.sharpen", kind: "number" },
+  { keys: ["lufs", "target lufs", "loudness"], path: "audio.targetLUFS", kind: "number" },
+  { keys: ["font size", "fontsize", "caption size"], path: "captions.fontSize", kind: "number" },
+  { keys: ["outline", "outline width", "stroke"], path: "captions.outlineWidth", kind: "number" },
+  { keys: ["caption color", "text color", "title color", "font color"], path: "captions.primaryColor", kind: "color" },
+  { keys: ["accent color", "secondary color"], path: "captions.secondaryColor", kind: "color" },
+  { keys: ["position", "caption position"], path: "captions.position", kind: "enum", values: VALID_POSITIONS },
+  { keys: ["cut sensitivity"], path: "editing.cutSensitivity", kind: "enum", values: VALID_SENSITIVITY },
+  { keys: ["min shot", "min shot seconds", "minimum shot"], path: "editing.minShotSeconds", kind: "number" },
+];
+
+function parseDirectiveLine(line) {
+  // Strip markdown list markers, emphasis, and heading hashes before matching.
+  const cleaned = line.replace(/^[\s>*#-]+/, "").replace(/[*_`]/g, "").trim();
+  const match = cleaned.match(/^([a-zA-Z ]{2,30}?)\s*[:=]\s*(.+)$/);
+  if (!match) return null;
+  const key = match[1].trim().toLowerCase();
+  const rawValue = match[2].trim();
+
+  for (const directive of DIRECTIVES) {
+    if (!directive.keys.includes(key)) continue;
+    if (directive.kind === "number") {
+      const num = parseFloat(rawValue);
+      if (Number.isNaN(num)) return null;
+      return { directive, value: num, display: String(num) };
+    }
+    if (directive.kind === "color") {
+      const colorMatch = rawValue.match(/#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})\b/);
+      if (!colorMatch) return null;
+      return { directive, value: expandHex(colorMatch[0]), display: expandHex(colorMatch[0]) };
+    }
+    if (directive.kind === "enum") {
+      const value = rawValue.toLowerCase().replace(/\s+/g, "-");
+      if (!directive.values.has(value)) return null;
+      return { directive, value, display: value };
+    }
+  }
+  return null;
+}
+
+/** Bare `#hex` codes anywhere in the text set the primary caption color. */
+function applyLooseHexCodes(cfg, text, applied) {
+  // Skip if an explicit color directive already ran (it recorded itself).
+  if (applied.some((a) => a.name.startsWith("directive: caption color") || a.name.startsWith("directive: text color"))) return;
+  const matches = text.match(/#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})\b/g);
   if (!matches || matches.length === 0) return;
-  cfg.captions.primaryColor = matches[0].toUpperCase();
-  applied.push({ name: "explicit hex color (primary)", explain: `primary caption color set to "${cfg.captions.primaryColor}"` });
+  cfg.captions.primaryColor = expandHex(matches[0]);
+  applied.push({
+    name: "explicit hex color",
+    explain: `primary caption color set to "${cfg.captions.primaryColor}"`,
+  });
   if (matches[1]) {
-    cfg.captions.secondaryColor = matches[1].toUpperCase();
-    applied.push({ name: "explicit hex color (secondary)", explain: `secondary caption color set to "${cfg.captions.secondaryColor}"` });
+    cfg.captions.secondaryColor = expandHex(matches[1]);
+    applied.push({
+      name: "explicit hex color (secondary)",
+      explain: `secondary caption color set to "${cfg.captions.secondaryColor}"`,
+    });
   }
 }
 
@@ -438,13 +559,25 @@ function parseStyleOverride(overrideText, baseProfile) {
       appliedRules.push({ name: rule.name, explain: rule.explain });
     }
   }
-  applyExplicitHexCodes(draft, text, appliedRules);
+
+  for (const line of text.split(/\r?\n/)) {
+    const parsed = parseDirectiveLine(line);
+    if (!parsed) continue;
+    setPath(draft, parsed.directive.path, parsed.value);
+    appliedRules.push({
+      name: `directive: ${parsed.directive.keys[0]}`,
+      explain: `${parsed.directive.path} set to ${parsed.display}`,
+    });
+  }
+
+  applyLooseHexCodes(draft, text, appliedRules);
 
   return { profile: normalizeProfile(draft), appliedRules };
 }
 
 module.exports = {
   DEFAULT_PROFILE,
+  CLAMPS,
   listBrandIds,
   listBrandProfiles,
   loadBrandProfile,

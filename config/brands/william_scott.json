@@ -30,13 +30,14 @@
     "loudnessRange": 9
   },
   "captions": {
-    "fontFile": "public/fonts/Inter-SemiBold.ttf",
-    "fontWeight": "semibold",
-    "fontSize": 52,
+    "fontFile": "public/fonts/WorkSans-Bold.ttf",
+    "fontSize": 50,
     "primaryColor": "#FFFFFF",
     "secondaryColor": "#FFFFFF",
     "position": "center",
     "backgroundBox": false,
+    "outlineWidth": 2,
+    "shadowOffset": 0,
     "animation": "none",
     "uppercase": false
   },

@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
+import { Readable } from "stream";
+import { pipeline as streamPipeline } from "stream/promises";
 import { randomUUID } from "crypto";
 import { loadBrandProfile, parseStyleOverride } from "@/utils/styleParser";
+import { parseCaptionInput, resolveCueTimes } from "@/utils/captionCues";
 import { createJob, updateJob } from "@/lib/jobs/jobStore";
 import { processVideo } from "@/lib/ffmpeg/pipeline";
+import { probeMedia } from "@/lib/ffmpeg/probe";
 
 export const runtime = "nodejs";
 
@@ -12,28 +16,6 @@ const UPLOADS_DIR = path.join(process.cwd(), "uploads");
 const OUTPUT_DIR = path.join(process.cwd(), "output");
 const ALLOWED_EXTENSIONS = new Set([".mp4", ".mov"]);
 const MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024; // 2GB
-
-type CaptionCue = { text: string; start: number; end: number };
-
-function parseCaptionCues(captionCuesJson: string | null, captionText: string | null): CaptionCue[] {
-  if (captionCuesJson) {
-    const parsed = JSON.parse(captionCuesJson);
-    if (!Array.isArray(parsed)) throw new Error("captionCuesJson must be a JSON array");
-    return parsed.map((cue: any, i: number) => {
-      if (typeof cue.text !== "string") throw new Error(`caption cue ${i} is missing "text"`);
-      return {
-        text: cue.text,
-        start: Number(cue.start) || 0,
-        end: cue.end != null ? Number(cue.end) : Number(cue.start) + 3,
-      };
-    });
-  }
-  if (captionText && captionText.trim().length > 0) {
-    // No explicit timing hook supplied: show the caption for the full clip.
-    return [{ text: captionText.trim(), start: 0, end: 1e6 }];
-  }
-  return [];
-}
 
 export async function POST(req: NextRequest) {
   const formData = await req.formData();
@@ -56,29 +38,25 @@ export async function POST(req: NextRequest) {
 
   const ext = path.extname(file.name).toLowerCase();
   if (!ALLOWED_EXTENSIONS.has(ext)) {
-    return NextResponse.json({ error: `Unsupported file type "${ext}". Only .mp4 and .mov are accepted.` }, { status: 400 });
+    return NextResponse.json(
+      { error: `Unsupported file type "${ext || file.name}". Only .mp4 and .mov are accepted.` },
+      { status: 400 }
+    );
   }
 
-  let baseProfile;
+  let profile, appliedRules;
   try {
-    baseProfile = loadBrandProfile(brandId);
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 400 });
-  }
-
-  let profile;
-  let appliedRules;
-  try {
+    const baseProfile = loadBrandProfile(brandId);
     ({ profile, appliedRules } = parseStyleOverride(styleOverride, baseProfile));
   } catch (err: any) {
-    return NextResponse.json({ error: `Style override validation failed: ${err.message}` }, { status: 400 });
+    return NextResponse.json({ error: err.message }, { status: 400 });
   }
 
-  let captionCues: CaptionCue[];
+  let rawCues;
   try {
-    captionCues = parseCaptionCues(captionCuesJson, captionText);
+    rawCues = parseCaptionInput(captionCuesJson, captionText);
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 400 });
+    return NextResponse.json({ error: `Caption input invalid: ${err.message}` }, { status: 400 });
   }
 
   const jobId = randomUUID();
@@ -86,9 +64,28 @@ export async function POST(req: NextRequest) {
   const inputPath = path.join(UPLOADS_DIR, `${jobId}${ext}`);
   const outputPath = path.join(OUTPUT_DIR, `${jobId}.mp4`);
 
-  const arrayBuffer = await file.arrayBuffer();
-  fs.writeFileSync(inputPath, Buffer.from(arrayBuffer));
+  // Stream the upload to disk rather than buffering the whole file in memory
+  // (uploads can be phone videos in the hundreds of MB or larger).
+  try {
+    await streamPipeline(Readable.fromWeb(file.stream() as any), fs.createWriteStream(inputPath));
+  } catch (err: any) {
+    fs.rmSync(inputPath, { force: true });
+    return NextResponse.json({ error: `Upload failed: ${err.message}` }, { status: 500 });
+  }
 
+  // Reject non-video payloads before queueing (a renamed .txt should fail
+  // here with a clear message, not mid-render).
+  let duration: number;
+  try {
+    const media = await probeMedia(inputPath);
+    if (!media.hasVideo) throw new Error("File contains no video stream");
+    duration = media.duration;
+  } catch (err: any) {
+    fs.rmSync(inputPath, { force: true });
+    return NextResponse.json({ error: `Not a readable video file: ${err.message}` }, { status: 400 });
+  }
+
+  const captionCues = resolveCueTimes(rawCues, duration);
   createJob({ id: jobId, fileName: file.name, brandId: profile.id, appliedRules });
 
   // Fire-and-forget: the render can take minutes, so respond with the job id
@@ -98,20 +95,19 @@ export async function POST(req: NextRequest) {
     outputPath,
     profile,
     captionCues,
-    onProgress: (p) => {
-      const percent = typeof p.percent === "number" ? Math.max(0, Math.min(99, Math.round(p.percent))) : undefined;
-      updateJob(jobId, { status: "processing", ...(percent !== undefined ? { progress: percent } : {}) });
+    onProgress: ({ stage, percent }) => {
+      updateJob(jobId, { status: "processing", stage, progress: Math.min(99, percent) });
     },
   })
     .then((result) => {
-      updateJob(jobId, { status: "completed", progress: 100, outputPath: result.outputPath, jumpCutMeta: result.jumpCutMeta });
+      updateJob(jobId, { status: "completed", stage: null, progress: 100, outputPath: result.outputPath, result });
     })
     .catch((err: any) => {
-      updateJob(jobId, { status: "failed", error: err.message });
+      updateJob(jobId, { status: "failed", stage: null, error: err.message });
     })
     .finally(() => {
       fs.rm(inputPath, { force: true }, () => {});
     });
 
-  return NextResponse.json({ jobId, brand: profile.id, appliedRules });
+  return NextResponse.json({ jobId, brand: profile.id, appliedRules, captionCueCount: captionCues.length });
 }

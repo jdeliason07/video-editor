@@ -9,6 +9,11 @@ function isAcceptedFile(file: File) {
   return ACCEPTED_EXTENSIONS.some((ext) => lower.endsWith(ext));
 }
 
+function formatSize(bytes: number) {
+  if (bytes >= 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 export default function UploadZone({
   file,
   onFileSelected,
@@ -39,6 +44,9 @@ export default function UploadZone({
     <div>
       <label className="mb-2 block text-sm font-medium text-white/80">Raw Footage</label>
       <div
+        role="button"
+        tabIndex={0}
+        aria-label="Upload a video file"
         onDragOver={(e) => {
           e.preventDefault();
           setIsDragging(true);
@@ -50,8 +58,13 @@ export default function UploadZone({
           handleFiles(e.dataTransfer.files);
         }}
         onClick={() => inputRef.current?.click()}
-        className={`flex cursor-pointer flex-col items-center justify-center rounded-xl2 border border-dashed px-6 py-10 text-center transition-colors ${
-          isDragging ? "border-accent bg-accent/5" : "border-line bg-panel hover:border-white/30"
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") inputRef.current?.click();
+        }}
+        className={`group flex cursor-pointer flex-col items-center justify-center rounded-xl2 border border-dashed px-6 py-12 text-center outline-none transition-all focus-visible:ring-2 focus-visible:ring-accent/60 ${
+          isDragging
+            ? "scale-[1.01] border-accent bg-accent/[0.06]"
+            : "border-line bg-panel hover:border-white/30 hover:bg-panel/70"
         }`}
       >
         <input
@@ -59,17 +72,43 @@ export default function UploadZone({
           type="file"
           accept=".mp4,.mov,video/mp4,video/quicktime"
           className="hidden"
-          onChange={(e) => handleFiles(e.target.files)}
+          onChange={(e) => {
+            handleFiles(e.target.files);
+            e.target.value = "";
+          }}
         />
+
+        <svg
+          className={`mb-3 h-8 w-8 transition-colors ${isDragging ? "text-accent" : "text-muted group-hover:text-white/70"}`}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          aria-hidden
+        >
+          <rect x="7" y="2.5" width="10" height="19" rx="2.5" />
+          <path d="M12 8v6m0 0 2.5-2.5M12 14l-2.5-2.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+
         {file ? (
           <>
-            <span className="text-sm font-medium text-white">{file.name}</span>
-            <span className="mt-1 text-xs text-muted">{(file.size / (1024 * 1024)).toFixed(1)} MB &middot; click or drop to replace</span>
+            <span className="max-w-full truncate text-sm font-medium text-white">{file.name}</span>
+            <span className="mt-1 text-xs text-muted">{formatSize(file.size)} · click or drop to replace</span>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onFileSelected(null);
+              }}
+              className="mt-3 rounded-full border border-line px-3 py-1 text-[11px] text-muted transition-colors hover:border-red-400/50 hover:text-red-400"
+            >
+              Remove
+            </button>
           </>
         ) : (
           <>
-            <span className="text-sm font-medium text-white/90">Drag & drop a mobile video, or click to browse</span>
-            <span className="mt-1 text-xs text-muted">.mp4 or .mov</span>
+            <span className="text-sm font-medium text-white/90">Drag &amp; drop a mobile video, or click to browse</span>
+            <span className="mt-1 text-xs text-muted">.mp4 or .mov · up to 2 GB</span>
           </>
         )}
       </div>

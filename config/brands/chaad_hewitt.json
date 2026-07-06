@@ -31,13 +31,14 @@
     "loudnessRange": 8
   },
   "captions": {
-    "fontFile": "public/fonts/Montserrat-Bold.ttf",
-    "fontWeight": "bold",
-    "fontSize": 64,
+    "fontFile": "public/fonts/Outfit-Bold.ttf",
+    "fontSize": 62,
     "primaryColor": "#FFFFFF",
-    "secondaryColor": "#FFFFFF",
+    "secondaryColor": "#C8102E",
     "position": "lower-third",
     "backgroundBox": true,
+    "outlineWidth": 0,
+    "shadowOffset": 0,
     "animation": "none",
     "uppercase": true
   },
