@@ -1,0 +1,48 @@
+{
+  "id": "william_scott",
+  "name": "William Scott",
+  "archetype": "High Clarity Minimal",
+  "description": "High clarity exposure, sharp cuts, minimal formatting.",
+  "keywords": [
+    "high clarity",
+    "sharp",
+    "minimal",
+    "minimalist",
+    "clean cuts",
+    "no clutter"
+  ],
+  "video": {
+    "contrast": 1.12,
+    "saturation": 1.02,
+    "brightness": 0.015,
+    "gamma": 1.0,
+    "sharpen": 0.5,
+    "vignette": false,
+    "colorBalance": {
+      "shadows": { "r": 0.0, "g": 0.0, "b": 0.0 },
+      "midtones": { "r": 0.0, "g": 0.0, "b": 0.0 },
+      "highlights": { "r": 0.0, "g": 0.0, "b": 0.0 }
+    }
+  },
+  "audio": {
+    "targetLUFS": -14,
+    "truePeak": -1.5,
+    "loudnessRange": 9
+  },
+  "captions": {
+    "fontFile": "public/fonts/Inter-SemiBold.ttf",
+    "fontWeight": "semibold",
+    "fontSize": 52,
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#FFFFFF",
+    "position": "center",
+    "backgroundBox": false,
+    "animation": "none",
+    "uppercase": false
+  },
+  "editing": {
+    "jumpCutOnBreaths": true,
+    "cutSensitivity": "high",
+    "minShotSeconds": 1.0
+  }
+}

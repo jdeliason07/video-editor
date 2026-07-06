@@ -1,0 +1,49 @@
+{
+  "id": "jefferson_fisher",
+  "name": "Jefferson Fisher",
+  "archetype": "Clean Documentary",
+  "description": "Clean documentary lighting contrast, zero visual clutter, strict jump-cut spacing on breaths.",
+  "keywords": [
+    "clean",
+    "documentary",
+    "zero clutter",
+    "minimalist",
+    "natural light",
+    "jump cuts",
+    "breath cuts"
+  ],
+  "video": {
+    "contrast": 1.08,
+    "saturation": 1.0,
+    "brightness": 0.01,
+    "gamma": 1.0,
+    "sharpen": 0.15,
+    "vignette": false,
+    "colorBalance": {
+      "shadows": { "r": 0.0, "g": 0.0, "b": 0.0 },
+      "midtones": { "r": 0.0, "g": 0.0, "b": 0.0 },
+      "highlights": { "r": 0.0, "g": 0.0, "b": 0.0 }
+    }
+  },
+  "audio": {
+    "targetLUFS": -14,
+    "truePeak": -1.5,
+    "loudnessRange": 9
+  },
+  "captions": {
+    "fontFile": "public/fonts/Inter-SemiBold.ttf",
+    "fontWeight": "semibold",
+    "fontSize": 56,
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#FFFFFF",
+    "position": "center",
+    "backgroundBox": false,
+    "animation": "none",
+    "uppercase": false
+  },
+  "editing": {
+    "jumpCutOnBreaths": true,
+    "cutSensitivity": "high",
+    "minShotSeconds": 1.2
+  }
+}

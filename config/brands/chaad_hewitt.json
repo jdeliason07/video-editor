@@ -1,0 +1,49 @@
+{
+  "id": "chaad_hewitt",
+  "name": "Chaad Hewitt",
+  "archetype": "Classic Newsroom",
+  "description": "Deep classic newsroom contrast, crisp exposure levels, bold white subtitles centered lower-third.",
+  "keywords": [
+    "newsroom",
+    "classic",
+    "crisp",
+    "exposure",
+    "bold subtitles",
+    "lower third",
+    "broadcast"
+  ],
+  "video": {
+    "contrast": 1.28,
+    "saturation": 0.95,
+    "brightness": 0.02,
+    "gamma": 1.02,
+    "sharpen": 0.4,
+    "vignette": false,
+    "colorBalance": {
+      "shadows": { "r": -0.02, "g": 0.0, "b": 0.02 },
+      "midtones": { "r": 0.0, "g": 0.0, "b": 0.0 },
+      "highlights": { "r": 0.0, "g": 0.0, "b": -0.01 }
+    }
+  },
+  "audio": {
+    "targetLUFS": -14,
+    "truePeak": -1.5,
+    "loudnessRange": 8
+  },
+  "captions": {
+    "fontFile": "public/fonts/Montserrat-Bold.ttf",
+    "fontWeight": "bold",
+    "fontSize": 64,
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#FFFFFF",
+    "position": "lower-third",
+    "backgroundBox": true,
+    "animation": "none",
+    "uppercase": true
+  },
+  "editing": {
+    "jumpCutOnBreaths": false,
+    "cutSensitivity": "medium",
+    "minShotSeconds": 2.0
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "id": "adrian_per",
+  "name": "Adrian Per",
+  "archetype": "Warm Cinematic",
+  "description": "Warm cinematic grading, dark shadows, high contrast yellow/white centered titles.",
+  "keywords": [
+    "warm",
+    "cinematic",
+    "moody",
+    "dark shadows",
+    "high contrast",
+    "centered titles",
+    "filmic"
+  ],
+  "video": {
+    "contrast": 1.22,
+    "saturation": 1.15,
+    "brightness": 0.0,
+    "gamma": 0.9,
+    "sharpen": 0.25,
+    "vignette": true,
+    "colorBalance": {
+      "shadows": { "r": 0.08, "g": 0.0, "b": -0.12 },
+      "midtones": { "r": 0.04, "g": 0.01, "b": -0.05 },
+      "highlights": { "r": 0.02, "g": 0.0, "b": 0.0 }
+    }
+  },
+  "audio": {
+    "targetLUFS": -14,
+    "truePeak": -1.5,
+    "loudnessRange": 11
+  },
+  "captions": {
+    "fontFile": "public/fonts/Montserrat-Bold.ttf",
+    "fontWeight": "bold",
+    "fontSize": 76,
+    "primaryColor": "#F5C518",
+    "secondaryColor": "#FFFFFF",
+    "position": "center",
+    "backgroundBox": false,
+    "animation": "fade",
+    "uppercase": true
+  },
+  "editing": {
+    "jumpCutOnBreaths": false,
+    "cutSensitivity": "low",
+    "minShotSeconds": 2.5
+  }
+}
