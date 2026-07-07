@@ -1,0 +1,12 @@
+node_modules
+.next
+.git
+uploads/*
+output/*
+!uploads/.gitkeep
+!output/.gitkeep
+*.log
+.env*
+tests
+README.md
+DEPLOY.md

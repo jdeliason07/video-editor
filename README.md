@@ -26,6 +26,10 @@ npm run dev     # http://localhost:3000
 npm test        # unit tests (node:test) for the parser, cut planner, and filter builders
 ```
 
+To host it in the cloud (use it from your phone anywhere, no laptop
+running), see **[DEPLOY.md](DEPLOY.md)** — the repo ships a Dockerfile with
+FFmpeg baked in that deploys as-is to Railway, Render, or Fly.io.
+
 ## How a render works
 
 1. **Upload** a `.mp4`/`.mov`, pick a **Brand Profile**, optionally add
