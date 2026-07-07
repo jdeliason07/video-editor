@@ -51,8 +51,11 @@ fly deploy
   download your cut when it finishes. (Fine for a single-user tool; a real
   multi-user deployment wants object storage + a job queue, per README.)
 - **Run exactly one instance.** The in-process job store doesn't scale out.
-- **Memory**: 4K phone footage renders comfortably within 1–2 GB. If a host
-  offers a memory slider, 2 GB is a safe starting point.
+- **Memory**: 4K phone footage renders comfortably within 1–2 GB. The
+  Podcast → Clips feature (local Whisper transcription) needs more — give it
+  **at least 2 GB, ideally 4 GB**, and note that CPU-only transcription of a
+  full episode takes several minutes. The image already bundles Python,
+  faster-whisper, and the model, so there's nothing extra to configure.
 - **No auth is built in** — anyone with the URL can upload and render. Most
   hosts offer basic access controls, or keep the URL private.
 - Verify a deploy is healthy at `https://<your-url>/api/health` — it should

@@ -1,0 +1,4 @@
+# Local transcription stack for the Podcast → Clips feature.
+# The Docker image installs this automatically; for a local (non-Docker) dev
+# server, install it yourself:  pip install -r requirements.txt
+faster-whisper==1.2.1

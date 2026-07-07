@@ -18,6 +18,12 @@ alongside the files) are bundled in `public/fonts/`, so drawtext output is
 deterministic. If a brand's font file is missing, the pipeline falls back
 to a system font (DejaVu / Liberation).
 
+**For the Podcast → Clips feature** you also need Python 3 and local
+Whisper: `pip install -r requirements.txt` (installs `faster-whisper`). The
+Docker image bundles this and pre-downloads the model; a local dev server
+needs it installed separately. Transcription is CPU-heavy — budget ~1 GB RAM
+and expect a full episode to take several minutes on a modest machine.
+
 ## Setup
 
 ```bash
@@ -58,6 +64,27 @@ FFmpeg baked in that deploys as-is to Railway, Render, or Fly.io.
 
 Measured on test renders: output programme loudness lands within
 ±0.05 LU of the −14 LUFS target, including after jump cuts.
+
+## Podcast → Clips
+
+A second mode (`/podcast`) turns one long episode into a set of short
+vertical clips, entirely on-device:
+
+1. **Transcribe** the whole upload with local Whisper (`lib/transcribe`,
+   word-level timestamps, nothing leaves the machine).
+2. **Select** highlight moments heuristically (`lib/highlights`): candidate
+   windows are built on sentence boundaries and scored by hook signals — a
+   question opener, emphasis/curiosity words, story markers, natural
+   speaking pace, and a duration near the short-form sweet spot — then the
+   top non-overlapping windows are chosen.
+3. **Fan out** (`lib/podcast`): each highlight is cut from the source and run
+   through the same brand pipeline as a single clip (1080×1920 crop, grade,
+   −14 LUFS) with captions auto-built from that segment's transcript words —
+   no manual caption entry.
+
+The dashboard shows the source episode expanding into titled, downloadable
+clips. Selection is rule-based (the free, no-API-key choice); swap
+`lib/highlights/select.js` for an LLM call if you want smarter picks.
 
 ## Brand profiles
 

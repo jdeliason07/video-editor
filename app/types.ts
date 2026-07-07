@@ -19,6 +19,31 @@ export type BrandSummary = {
   };
 };
 
+export type PodcastClip = {
+  index: number;
+  title: string;
+  start: number;
+  end: number;
+  status: "queued" | "rendering" | "completed" | "failed";
+  outputPath: string | null;
+  error: string | null;
+};
+
+export type PodcastJob = {
+  id: string;
+  fileName: string;
+  brandId: string;
+  status: string; // queued | transcribing | selecting | rendering | completed | failed
+  stage: string | null;
+  progress: number;
+  createdAt: number;
+  updatedAt: number;
+  error: string | null;
+  durationSeconds: number | null;
+  clipsFound: number | null;
+  clips: PodcastClip[];
+};
+
 export type JobStatus = "queued" | "processing" | "completed" | "failed";
 export type JobStage = "analyzing" | "measuring" | "rendering" | null;
 
