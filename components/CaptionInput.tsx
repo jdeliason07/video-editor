@@ -21,6 +21,9 @@ export default function CaptionInput({
         placeholder={"A line of text to overlay, styled per brand — or paste full SRT subtitles for timed captions."}
         className="w-full resize-y rounded-xl2 border border-line bg-paper px-4 py-3.5 text-sm leading-relaxed outline-none transition-colors placeholder:text-muted/70 hover:border-ink/30 focus:border-ink"
       />
+      <p className="mt-2 text-xs leading-relaxed text-muted">
+        Captions are only burned in if you add text here. Leave it blank for a clean grade with no on-screen text.
+      </p>
     </div>
   );
 }

@@ -28,6 +28,7 @@ export default function HomePage() {
   const [captionText, setCaptionText] = useState("");
   const [jobs, setJobs] = useState<Job[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [uploadPercent, setUploadPercent] = useState<number | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [healthWarning, setHealthWarning] = useState<string | null>(null);
   const pollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -79,16 +80,36 @@ export default function HomePage() {
     if (!file || !brandId || submitting) return;
     setSubmitting(true);
     setSubmitError(null);
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("brandId", brandId);
-      if (styleGuideFile) formData.append("styleGuideFile", styleGuideFile);
-      if (captionText.trim()) formData.append("captionText", captionText);
+    setUploadPercent(0);
 
-      const res = await fetch("/api/process", { method: "POST", body: formData });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to start compilation");
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("brandId", brandId);
+    if (styleGuideFile) formData.append("styleGuideFile", styleGuideFile);
+    if (captionText.trim()) formData.append("captionText", captionText);
+
+    try {
+      // XHR (not fetch) so we can show real upload progress — for a large 4K
+      // phone video the upload is the longest, most opaque part of the wait.
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", "/api/process");
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) setUploadPercent(Math.round((e.loaded / e.total) * 100));
+        };
+        xhr.onload = () => {
+          let data: any = {};
+          try {
+            data = JSON.parse(xhr.responseText);
+          } catch {
+            /* non-JSON error body */
+          }
+          if (xhr.status >= 200 && xhr.status < 300) resolve();
+          else reject(new Error(data.error ?? `Upload failed (${xhr.status})`));
+        };
+        xhr.onerror = () => reject(new Error("Network error during upload"));
+        xhr.send(formData);
+      });
 
       setFile(null);
       await refreshJobs();
@@ -96,6 +117,7 @@ export default function HomePage() {
       setSubmitError(err.message);
     } finally {
       setSubmitting(false);
+      setUploadPercent(null);
     }
   }
 
@@ -141,14 +163,33 @@ export default function HomePage() {
               <StyleGuideOverride file={styleGuideFile} onFileSelected={setStyleGuideFile} />
             </div>
           </div>
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-3">
             <button
               onClick={handleSubmit}
               disabled={!file || !brandId || submitting || Boolean(healthWarning)}
               className="rounded-full bg-ink px-8 py-4 text-[15px] font-medium text-paper transition-all hover:opacity-85 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-30"
             >
-              {submitting ? "Uploading…" : "Compile vertical cut"}
+              {submitting
+                ? uploadPercent !== null && uploadPercent < 100
+                  ? `Uploading ${uploadPercent}%`
+                  : "Starting render…"
+                : "Compile vertical cut"}
             </button>
+            {submitting && uploadPercent !== null && (
+              <div className="h-1 w-full overflow-hidden rounded-full bg-line" aria-label="Upload progress">
+                <div
+                  className={`h-full rounded-full bg-ink transition-[width] duration-200 ${uploadPercent >= 100 ? "progress-active" : ""}`}
+                  style={{ width: `${Math.max(4, uploadPercent)}%` }}
+                />
+              </div>
+            )}
+            {submitting && (
+              <p className="text-xs text-muted">
+                {uploadPercent !== null && uploadPercent < 100
+                  ? "Sending your footage to the server…"
+                  : "Upload complete — the render appears below and tracks its own progress."}
+              </p>
+            )}
             {submitError && <p className="text-xs text-muted">✕ {submitError}</p>}
           </div>
         </div>
