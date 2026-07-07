@@ -5,7 +5,9 @@ import type { BrandSummary } from "@/app/types";
 
 /**
  * A miniature 9:16 frame that previews the selected brand's caption
- * treatment: color, position, and casing, over a CSS-simulated grade.
+ * treatment — color, position, casing, box — over a simulated grade. The
+ * frame's colors are the brand's video output, not site chrome, so they
+ * stay true even on the monochrome page.
  */
 function StylePreview({ brand }: { brand: BrandSummary }) {
   const { style } = brand;
@@ -17,11 +19,11 @@ function StylePreview({ brand }: { brand: BrandSummary }) {
         : "items-center";
   return (
     <div
-      className={`flex h-40 w-[5.6rem] shrink-0 justify-center overflow-hidden rounded-lg border border-line ${positionClass}`}
+      className={`flex h-44 w-[6.2rem] shrink-0 justify-center overflow-hidden rounded-lg ${positionClass}`}
       style={{
         background: style.vignette
-          ? "radial-gradient(closest-side at 50% 45%, #4a4a55 0%, #17171c 95%)"
-          : "linear-gradient(165deg, #3d3d47 0%, #1c1c22 100%)",
+          ? "radial-gradient(closest-side at 50% 45%, #55555f 0%, #17171c 95%)"
+          : "linear-gradient(165deg, #45454f 0%, #1c1c22 100%)",
         filter: `contrast(${style.contrast}) saturate(${style.saturation})`,
       }}
       aria-hidden
@@ -71,52 +73,64 @@ export default function BrandProfileSelector({
 
   return (
     <div>
-      <label htmlFor="brand-select" className="mb-2 block text-sm font-medium text-white/80">
+      <label htmlFor="brand-select" className="mb-2 block text-sm font-medium">
         Select Brand Profile
       </label>
-      <select
-        id="brand-select"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full cursor-pointer appearance-none rounded-xl2 border border-line bg-panel px-4 py-3 text-sm text-white outline-none transition-colors focus:border-accent"
-      >
-        {brands.length === 0 && <option value="">Loading profiles…</option>}
-        {brands.map((brand) => (
-          <option key={brand.id} value={brand.id}>
-            {brand.name} — {brand.archetype}
-          </option>
-        ))}
-      </select>
-      {loadError && <p className="mt-2 text-xs text-red-400">{loadError}</p>}
+      <div className="relative">
+        <select
+          id="brand-select"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full cursor-pointer appearance-none rounded-xl2 border border-line bg-paper px-4 py-3.5 pr-10 text-sm outline-none transition-colors hover:border-ink/30 focus:border-ink"
+        >
+          {brands.length === 0 && <option value="">Loading profiles…</option>}
+          {brands.map((brand) => (
+            <option key={brand.id} value={brand.id}>
+              {brand.name} — {brand.archetype}
+            </option>
+          ))}
+        </select>
+        <svg
+          className="pointer-events-none absolute right-4 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          aria-hidden
+        >
+          <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </div>
+      {loadError && <p className="mt-2 text-xs font-medium">✕ {loadError}</p>}
 
       {selected && (
-        <div className="mt-3 flex gap-4 rounded-xl2 border border-line bg-surface p-4">
+        <div className="mt-4 flex gap-5 rounded-xl2 border border-line bg-paper p-5 shadow-card">
           <StylePreview brand={selected} />
           <div className="min-w-0">
             <p className="text-xs leading-relaxed text-muted">{selected.description}</p>
-            <div className="mt-2.5 flex flex-wrap gap-1.5">
+            <div className="mt-3 flex flex-wrap gap-1.5">
               {selected.keywords.map((k) => (
-                <span key={k} className="rounded-full border border-line px-2 py-0.5 text-[11px] text-white/60">
+                <span key={k} className="rounded-full border border-line px-2.5 py-0.5 text-[11px] text-muted">
                   {k}
                 </span>
               ))}
             </div>
-            <div className="mt-3 flex items-center gap-3 text-[11px] text-muted">
+            <div className="mt-4 flex items-center gap-4 text-[11px] text-muted">
               <span className="inline-flex items-center gap-1.5">
                 <span
-                  className="inline-block h-3 w-3 rounded-full border border-white/20"
+                  className="inline-block h-3 w-3 rounded-full border border-ink/15"
                   style={{ backgroundColor: selected.style.captionColor }}
                 />
                 caption
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <span
-                  className="inline-block h-3 w-3 rounded-full border border-white/20"
+                  className="inline-block h-3 w-3 rounded-full border border-ink/15"
                   style={{ backgroundColor: selected.style.accentColor }}
                 />
                 accent
               </span>
-              {selected.style.jumpCuts && <span className="text-accent/80">✂ breath jump-cuts</span>}
+              {selected.style.jumpCuts && <span className="italic">breath jump-cuts</span>}
             </div>
           </div>
         </div>
