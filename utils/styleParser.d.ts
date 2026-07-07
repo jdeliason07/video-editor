@@ -35,6 +35,8 @@ export interface BrandProfile {
     secondaryColor: string;
     position: "center" | "lower-third" | "top";
     backgroundBox: boolean;
+    boxColor: string;
+    boxOpacity: number;
     outlineWidth: number;
     shadowOffset: number;
     animation: "none" | "fade";

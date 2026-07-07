@@ -57,6 +57,8 @@ const DEFAULT_PROFILE = {
     secondaryColor: "#FFFFFF",
     position: "center",
     backgroundBox: false,
+    boxColor: "#000000",
+    boxOpacity: 0.55,
     outlineWidth: 3,
     shadowOffset: 0,
     animation: "none",
@@ -89,6 +91,7 @@ const CLAMPS = {
   "audio.truePeak": [-6, -0.5],
   "audio.loudnessRange": [3, 20],
   "captions.fontSize": [24, 120],
+  "captions.boxOpacity": [0, 1],
   "captions.outlineWidth": [0, 12],
   "captions.shadowOffset": [0, 12],
   "editing.minShotSeconds": [0.3, 6],
@@ -170,7 +173,7 @@ function normalizeProfile(rawProfile) {
   if (!VALID_ANIMATIONS.has(merged.captions.animation)) {
     problems.push(`"captions.animation" must be one of ${[...VALID_ANIMATIONS].join(", ")}, got "${merged.captions.animation}"`);
   }
-  for (const colorField of ["primaryColor", "secondaryColor"]) {
+  for (const colorField of ["primaryColor", "secondaryColor", "boxColor"]) {
     const value = merged.captions[colorField];
     if (typeof value !== "string" || !HEX_COLOR_RE.test(value)) {
       problems.push(`"captions.${colorField}" must be a hex color like #F5C518, got ${JSON.stringify(value)}`);
@@ -482,6 +485,7 @@ const DIRECTIVES = [
   { keys: ["outline", "outline width", "stroke"], path: "captions.outlineWidth", kind: "number" },
   { keys: ["caption color", "text color", "title color", "font color"], path: "captions.primaryColor", kind: "color" },
   { keys: ["accent color", "secondary color"], path: "captions.secondaryColor", kind: "color" },
+  { keys: ["box color", "caption box color"], path: "captions.boxColor", kind: "color" },
   { keys: ["position", "caption position"], path: "captions.position", kind: "enum", values: VALID_POSITIONS },
   { keys: ["cut sensitivity"], path: "editing.cutSensitivity", kind: "enum", values: VALID_SENSITIVITY },
   { keys: ["min shot", "min shot seconds", "minimum shot"], path: "editing.minShotSeconds", kind: "number" },

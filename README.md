@@ -29,8 +29,8 @@ npm test        # unit tests (node:test) for the parser, cut planner, and filter
 ## How a render works
 
 1. **Upload** a `.mp4`/`.mov`, pick a **Brand Profile**, optionally add
-   captions (plain text or pasted SRT) and freeform notes in **Brand Style
-   Guide Override**.
+   captions (plain text or pasted SRT) and drop a markdown/text **Brand
+   Style Guide** file into the override zone.
 2. `POST /api/process` streams the upload to disk, probes it, validates the
    brand config + override through `utils/styleParser.js`, and starts the
    render as a background job.
@@ -64,10 +64,16 @@ Each archetype lives at `config/brands/<id>.json`, validated and clamped by
 - `jefferson_fisher` — clean documentary contrast, zero clutter, strict jump cuts on breaths
 - `chaad_hewitt` — classic newsroom contrast, bold white uppercase lower-third on a box
 - `william_scott` — high-clarity exposure, sharp jump cuts, minimal captions
+- `race_against_cancer` — bright hopeful campaign look for Instagram: bold white
+  uppercase statements on the brand's raspberry-pink box (`#E23D7C`, sampled
+  from campaign footage), energetic breath-cut pacing
 
 ## Style Guide Override
 
-Freeform text is parsed in two layers (`utils/styleParser.js`):
+The UI takes the style guide as a **file upload** (`.md`/`.txt`, ≤ 512 KB)
+sent as the `styleGuideFile` form part; API callers can still pass the raw
+text in the `styleOverride` string field (the file wins if both are sent).
+Either way the content is parsed in two layers (`utils/styleParser.js`):
 
 1. **Keyword rules** — brand vocabulary mapped to parameter deltas, e.g.
    "moody" → contrast boost + gamma crush + vignette; "minimalist" → no

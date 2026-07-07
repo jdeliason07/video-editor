@@ -16,15 +16,43 @@ const UPLOADS_DIR = path.join(process.cwd(), "uploads");
 const OUTPUT_DIR = path.join(process.cwd(), "output");
 const ALLOWED_EXTENSIONS = new Set([".mp4", ".mov"]);
 const MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024; // 2GB
+const STYLE_GUIDE_EXTENSIONS = new Set([".md", ".markdown", ".txt"]);
+const MAX_STYLE_GUIDE_BYTES = 512 * 1024;
+
+/**
+ * The style guide override arrives as an uploaded markdown/text file
+ * (styleGuideFile); the raw styleOverride string field is still honored as
+ * a fallback for programmatic callers. The file wins when both are sent.
+ */
+async function readStyleOverride(formData: FormData): Promise<string> {
+  const guideFile = formData.get("styleGuideFile");
+  if (guideFile instanceof File && guideFile.size > 0) {
+    const ext = path.extname(guideFile.name).toLowerCase();
+    if (!STYLE_GUIDE_EXTENSIONS.has(ext)) {
+      throw new Error(`Style guide must be a .md or .txt file, got "${ext || guideFile.name}"`);
+    }
+    if (guideFile.size > MAX_STYLE_GUIDE_BYTES) {
+      throw new Error("Style guide file exceeds the 512 KB limit");
+    }
+    return await guideFile.text();
+  }
+  return (formData.get("styleOverride") as string | null) ?? "";
+}
 
 export async function POST(req: NextRequest) {
   const formData = await req.formData();
 
   const file = formData.get("file");
   const brandId = formData.get("brandId");
-  const styleOverride = (formData.get("styleOverride") as string | null) ?? "";
   const captionText = formData.get("captionText") as string | null;
   const captionCuesJson = formData.get("captionCuesJson") as string | null;
+
+  let styleOverride: string;
+  try {
+    styleOverride = await readStyleOverride(formData);
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 400 });
+  }
 
   if (!(file instanceof File)) {
     return NextResponse.json({ error: "Missing required file upload" }, { status: 400 });

@@ -8,6 +8,9 @@ export type BrandSummary = {
     captionColor: string;
     accentColor: string;
     captionPosition: "center" | "lower-third" | "top";
+    backgroundBox: boolean;
+    boxColor: string;
+    boxOpacity: number;
     uppercase: boolean;
     contrast: number;
     saturation: number;

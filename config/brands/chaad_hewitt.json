@@ -37,6 +37,8 @@
     "secondaryColor": "#C8102E",
     "position": "lower-third",
     "backgroundBox": true,
+    "boxColor": "#000000",
+    "boxOpacity": 0.55,
     "outlineWidth": 0,
     "shadowOffset": 0,
     "animation": "none",

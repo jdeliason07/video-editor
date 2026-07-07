@@ -74,6 +74,18 @@ test("caption filters write textfiles and gate cues to their windows", () => {
   }
 });
 
+test("caption background box uses the brand's box color and opacity", () => {
+  const workDir = fs.mkdtempSync(path.join(os.tmpdir(), "filters-test-"));
+  try {
+    const captions = { ...DEFAULT_PROFILE.captions, backgroundBox: true, boxColor: "#E23D7C", boxOpacity: 0.88, outlineWidth: 0 };
+    const [filter] = buildCaptionFilters([{ text: "Run. Give.", start: 0, end: 2 }], captions, workDir);
+    assert.match(filter, /boxcolor=0xE23D7C@0\.88/);
+    assert.doesNotMatch(filter, /:borderw=/); // no text outline (boxborderw is the box padding)
+  } finally {
+    fs.rmSync(workDir, { recursive: true, force: true });
+  }
+});
+
 test("loudnorm filter switches to precise linear mode when measurements exist", () => {
   const audio = DEFAULT_PROFILE.audio;
   assert.equal(buildLoudnormFilter(audio), "loudnorm=I=-14:TP=-1.5:LRA=11");

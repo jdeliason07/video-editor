@@ -24,7 +24,7 @@ function SectionLabel({ index, children }: { index: string; children: React.Reac
 export default function HomePage() {
   const [file, setFile] = useState<File | null>(null);
   const [brandId, setBrandId] = useState("");
-  const [styleOverride, setStyleOverride] = useState("");
+  const [styleGuideFile, setStyleGuideFile] = useState<File | null>(null);
   const [captionText, setCaptionText] = useState("");
   const [jobs, setJobs] = useState<Job[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -69,7 +69,7 @@ export default function HomePage() {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("brandId", brandId);
-      formData.append("styleOverride", styleOverride);
+      if (styleGuideFile) formData.append("styleGuideFile", styleGuideFile);
       if (captionText.trim()) formData.append("captionText", captionText);
 
       const res = await fetch("/api/process", { method: "POST", body: formData });
@@ -120,7 +120,7 @@ export default function HomePage() {
             <SectionLabel index="03">Voice &amp; Overrides</SectionLabel>
             <div className="flex flex-col gap-5">
               <CaptionInput value={captionText} onChange={setCaptionText} />
-              <StyleGuideOverride value={styleOverride} onChange={setStyleOverride} />
+              <StyleGuideOverride file={styleGuideFile} onFileSelected={setStyleGuideFile} />
             </div>
           </div>
           <div className="flex flex-col gap-2">

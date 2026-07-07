@@ -10,13 +10,27 @@ const {
 
 test("every shipped brand profile validates and normalizes", () => {
   const profiles = listBrandProfiles();
-  assert.equal(profiles.length, 4);
+  assert.equal(profiles.length, 5);
   const ids = profiles.map((p) => p.id).sort();
-  assert.deepEqual(ids, ["adrian_per", "chaad_hewitt", "jefferson_fisher", "william_scott"]);
+  assert.deepEqual(ids, ["adrian_per", "chaad_hewitt", "jefferson_fisher", "race_against_cancer", "william_scott"]);
   for (const profile of profiles) {
     assert.match(profile.captions.primaryColor, /^#[0-9A-F]{6}$/);
+    assert.match(profile.captions.boxColor, /^#[0-9A-F]{6}$/);
     assert.equal(profile.audio.targetLUFS, -14);
   }
+});
+
+test("race_against_cancer brand carries its campaign pink caption box", () => {
+  const profile = loadBrandProfile("race_against_cancer");
+  assert.equal(profile.captions.backgroundBox, true);
+  assert.equal(profile.captions.boxColor, "#E23D7C");
+  assert.equal(profile.captions.uppercase, true);
+  assert.equal(profile.editing.jumpCutOnBreaths, true);
+});
+
+test("box color directive sets captions.boxColor", () => {
+  const { profile } = parseStyleOverride("box color: #123456", DEFAULT_PROFILE);
+  assert.equal(profile.captions.boxColor, "#123456");
 });
 
 test("normalizeProfile clamps out-of-range numeric values", () => {

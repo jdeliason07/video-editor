@@ -1,0 +1,53 @@
+{
+  "id": "race_against_cancer",
+  "name": "Race Against Cancer",
+  "archetype": "Campaign Instagram",
+  "description": "Bright, hopeful charity-campaign look: clean airy exposure, bold uppercase statement captions in white on the brand's raspberry-pink block, energetic cut pacing for Instagram.",
+  "keywords": [
+    "charity",
+    "campaign",
+    "instagram",
+    "bright",
+    "hopeful",
+    "bold statements",
+    "pink accent",
+    "energetic"
+  ],
+  "video": {
+    "contrast": 1.1,
+    "saturation": 1.08,
+    "brightness": 0.025,
+    "gamma": 1.04,
+    "sharpen": 0.3,
+    "vignette": false,
+    "colorBalance": {
+      "shadows": { "r": 0.02, "g": 0.0, "b": 0.0 },
+      "midtones": { "r": 0.01, "g": 0.0, "b": 0.01 },
+      "highlights": { "r": 0.0, "g": 0.0, "b": 0.0 }
+    }
+  },
+  "audio": {
+    "targetLUFS": -14,
+    "truePeak": -1.5,
+    "loudnessRange": 10
+  },
+  "captions": {
+    "fontFile": "public/fonts/Outfit-Bold.ttf",
+    "fontSize": 66,
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#E23D7C",
+    "position": "center",
+    "backgroundBox": true,
+    "boxColor": "#E23D7C",
+    "boxOpacity": 0.88,
+    "outlineWidth": 0,
+    "shadowOffset": 0,
+    "animation": "fade",
+    "uppercase": true
+  },
+  "editing": {
+    "jumpCutOnBreaths": true,
+    "cutSensitivity": "medium",
+    "minShotSeconds": 1.5
+  }
+}

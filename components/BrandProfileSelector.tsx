@@ -30,9 +30,13 @@ function StylePreview({ brand }: { brand: BrandSummary }) {
         className="max-w-full px-1 text-center text-[9px] font-bold leading-tight"
         style={{
           color: style.captionColor,
-          textShadow: "0 1px 2px rgba(0,0,0,0.8)",
-          backgroundColor: style.captionPosition === "lower-third" ? "rgba(0,0,0,0.55)" : "transparent",
-          padding: style.captionPosition === "lower-third" ? "2px 4px" : undefined,
+          textShadow: style.backgroundBox ? undefined : "0 1px 2px rgba(0,0,0,0.8)",
+          backgroundColor: style.backgroundBox
+            ? `${style.boxColor}${Math.round(style.boxOpacity * 255)
+                .toString(16)
+                .padStart(2, "0")}`
+            : "transparent",
+          padding: style.backgroundBox ? "2px 4px" : undefined,
         }}
       >
         {style.uppercase ? "YOUR TITLE" : "Your title"}
