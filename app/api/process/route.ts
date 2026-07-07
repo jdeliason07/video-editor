@@ -9,6 +9,7 @@ import { parseCaptionInput, resolveCueTimes } from "@/utils/captionCues";
 import { createJob, updateJob } from "@/lib/jobs/jobStore";
 import { processVideo } from "@/lib/ffmpeg/pipeline";
 import { probeMedia } from "@/lib/ffmpeg/probe";
+import { checkBinaries } from "@/lib/ffmpeg/binaries";
 
 export const runtime = "nodejs";
 
@@ -40,6 +41,16 @@ async function readStyleOverride(formData: FormData): Promise<string> {
 }
 
 export async function POST(req: NextRequest) {
+  // Refuse before touching the (potentially huge) upload body so a missing
+  // FFmpeg install fails instantly with guidance, not after a long upload.
+  const binaries = checkBinaries();
+  if (!binaries.ok) {
+    return NextResponse.json(
+      { error: `The server can't render video: FFmpeg is not available. ${binaries.hint}` },
+      { status: 503 }
+    );
+  }
+
   const formData = await req.formData();
 
   const file = formData.get("file");

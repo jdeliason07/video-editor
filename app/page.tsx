@@ -29,7 +29,21 @@ export default function HomePage() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [healthWarning, setHealthWarning] = useState<string | null>(null);
   const pollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Surface a missing FFmpeg install immediately, before anyone uploads.
+  useEffect(() => {
+    fetch("/api/health")
+      .then((res) => res.json())
+      .then((health) => {
+        if (!health.ok) {
+          const missing = [!health.ffmpeg && "ffmpeg", !health.ffprobe && "ffprobe"].filter(Boolean).join(" and ");
+          setHealthWarning(`${missing} not found on this machine — rendering is disabled. ${health.hint ?? ""}`);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const hasActiveJobs = useMemo(
     () => jobs.some((j) => j.status === "queued" || j.status === "processing"),
@@ -103,6 +117,16 @@ export default function HomePage() {
         </p>
       </header>
 
+      {healthWarning && (
+        <div
+          role="alert"
+          className="rounded-xl2 border border-amber-400/40 bg-amber-400/10 px-5 py-4 text-sm leading-relaxed text-amber-200"
+        >
+          <p className="font-semibold">FFmpeg missing</p>
+          <p className="mt-1 text-amber-200/90">{healthWarning}</p>
+        </div>
+      )}
+
       <section className="grid grid-cols-1 gap-x-10 gap-y-8 lg:grid-cols-2">
         <div className="flex flex-col gap-8">
           <div>
@@ -126,7 +150,7 @@ export default function HomePage() {
           <div className="flex flex-col gap-2">
             <button
               onClick={handleSubmit}
-              disabled={!file || !brandId || submitting}
+              disabled={!file || !brandId || submitting || Boolean(healthWarning)}
               className="rounded-xl2 bg-accent px-5 py-3.5 text-sm font-semibold text-ink shadow-[0_0_24px_rgba(232,193,75,0.15)] transition-all hover:opacity-90 hover:shadow-[0_0_32px_rgba(232,193,75,0.25)] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
             >
               {submitting ? "Uploading…" : "Compile vertical cut"}
