@@ -86,6 +86,28 @@ The dashboard shows the source episode expanding into titled, downloadable
 clips. Selection is rule-based (the free, no-API-key choice); swap
 `lib/highlights/select.js` for an LLM call if you want smarter picks.
 
+## Transcribe
+
+A third mode (`/transcribe`) is a plain local transcriber: drop in any
+video or audio file (mp4, mov, mkv, webm, mp3, m4a, wav… up to 20 GB) and get
+back timestamped paragraphs plus `.srt`/`.vtt` subtitles and raw `.json`.
+
+```bash
+brew install ffmpeg            # or apt-get install -y ffmpeg / winget install ffmpeg
+pip install -r requirements.txt
+npm install && npm run dev     # open http://localhost:3000/transcribe
+```
+
+- **Large files:** the browser sends the file as the raw request body and
+  `POST /api/transcribe` streams it straight to disk — nothing is buffered in
+  memory (measured: a 1.7 GB, 30-minute upload grew server RSS by ~20 MB).
+  Only a 16 kHz mono WAV (~60 MB for 30 min) is extracted for Whisper.
+- **Models:** `small.en` (default, accurate English), `base.en` (fast),
+  `small` (auto-detects language, e.g. Spanish), `medium` (best, slow). Each
+  downloads once on first use. A 30-minute file took ~5 min with `base.en`
+  on a 4-core cloud container; budget 2–3× that for `small.en`.
+- Transcripts live in memory until the server restarts — download them.
+
 ## Brand profiles
 
 Each archetype lives at `config/brands/<id>.json`, validated and clamped by

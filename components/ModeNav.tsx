@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 const TABS = [
   { href: "/", label: "Single clip" },
   { href: "/podcast", label: "Podcast → clips" },
+  { href: "/transcribe", label: "Transcribe" },
 ];
 
 export default function ModeNav() {
