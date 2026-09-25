@@ -2,11 +2,11 @@
 
 import { useCallback, useRef, useState } from "react";
 
-const ACCEPTED_EXTENSIONS = [".mp4", ".mov"];
+const DEFAULT_EXTENSIONS = [".mp4", ".mov"];
 
-function isAcceptedFile(file: File) {
+function isAcceptedFile(file: File, extensions: string[]) {
   const lower = file.name.toLowerCase();
-  return ACCEPTED_EXTENSIONS.some((ext) => lower.endsWith(ext));
+  return extensions.some((ext) => lower.endsWith(ext));
 }
 
 function formatSize(bytes: number) {
@@ -17,9 +17,15 @@ function formatSize(bytes: number) {
 export default function UploadZone({
   file,
   onFileSelected,
+  extensions = DEFAULT_EXTENSIONS,
+  prompt = "Drag & drop a mobile video, or click to browse",
+  hint = ".mp4 or .mov · up to 2 GB",
 }: {
   file: File | null;
   onFileSelected: (file: File | null) => void;
+  extensions?: string[];
+  prompt?: string;
+  hint?: string;
 }) {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,15 +35,15 @@ export default function UploadZone({
     (files: FileList | null) => {
       const candidate = files?.[0];
       if (!candidate) return;
-      if (!isAcceptedFile(candidate)) {
-        setError("Only .mp4 or .mov files are supported.");
+      if (!isAcceptedFile(candidate, extensions)) {
+        setError(`Unsupported file type. Accepted: ${extensions.join(", ")}`);
         onFileSelected(null);
         return;
       }
       setError(null);
       onFileSelected(candidate);
     },
-    [onFileSelected]
+    [onFileSelected, extensions]
   );
 
   return (
@@ -69,7 +75,7 @@ export default function UploadZone({
         <input
           ref={inputRef}
           type="file"
-          accept=".mp4,.mov,video/mp4,video/quicktime"
+          accept={extensions.join(",")}
           className="hidden"
           onChange={(e) => {
             handleFiles(e.target.files);
@@ -106,8 +112,8 @@ export default function UploadZone({
           </>
         ) : (
           <>
-            <span className="text-sm font-medium">Drag &amp; drop a mobile video, or click to browse</span>
-            <span className="mt-1.5 text-xs text-muted">.mp4 or .mov · up to 2 GB</span>
+            <span className="text-sm font-medium">{prompt}</span>
+            <span className="mt-1.5 text-xs text-muted">{hint}</span>
           </>
         )}
       </div>

@@ -12,7 +12,8 @@ model is a local Whisper checkpoint (default base.en), so nothing about the
 audio leaves the machine.
 
 Usage: transcribe.py <input.wav>
-Env:   WHISPER_MODEL (default "base.en"), WHISPER_COMPUTE (default "int8")
+Env:   WHISPER_MODEL (default "base.en"), WHISPER_COMPUTE (default "int8"),
+       WHISPER_WORDS ("0" skips word-level timestamps — faster, segments only)
 """
 
 import json
@@ -28,6 +29,7 @@ def main() -> int:
     audio_path = sys.argv[1]
     model_name = os.environ.get("WHISPER_MODEL", "base.en")
     compute_type = os.environ.get("WHISPER_COMPUTE", "int8")
+    word_timestamps = os.environ.get("WHISPER_WORDS", "1") != "0"
 
     try:
         from faster_whisper import WhisperModel
@@ -44,7 +46,7 @@ def main() -> int:
     # word timings tight around actual speech.
     segments_iter, info = model.transcribe(
         audio_path,
-        word_timestamps=True,
+        word_timestamps=word_timestamps,
         vad_filter=True,
         vad_parameters={"min_silence_duration_ms": 500},
     )

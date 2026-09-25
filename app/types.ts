@@ -68,3 +68,21 @@ export type Job = {
     jumpCutMeta: { cutsRemoved: number } | null;
   } | null;
 };
+
+export type TranscriptSegment = { start: number; end: number; text: string };
+
+export type TranscriptJob = {
+  id: string;
+  fileName: string;
+  model: string;
+  status: "queued" | "extracting" | "transcribing" | "completed" | "failed";
+  progress: number;
+  createdAt: number;
+  updatedAt: number;
+  error: string | null;
+  durationSeconds: number | null;
+  language: string | null;
+  transcript: { duration: number; language: string; segments: TranscriptSegment[] } | null;
+};
+
+export type TranscriptJobSummary = Omit<TranscriptJob, "transcript"> & { segmentCount: number | null };
